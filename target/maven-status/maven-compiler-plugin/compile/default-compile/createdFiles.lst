@@ -1,0 +1,6 @@
+com\example\gatekeeper\util\Http.class
+com\example\gatekeeper\checks\CorsChecker.class
+com\example\gatekeeper\checks\ActuatorChecker.class
+com\example\gatekeeper\App.class
+com\example\gatekeeper\util\Http$Response.class
+com\example\gatekeeper\checks\SqlChecker.class

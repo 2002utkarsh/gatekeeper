@@ -1,0 +1,64 @@
+name: Gatekeeper Security Scan
+
+on:
+  workflow_dispatch:
+    inputs:
+      target-url:
+        description: 'Target base URL to scan (e.g. https://staging.example.com)'
+        required: true
+      checks:
+        description: 'Comma-separated checks to run (cors,actuator,sql). Defaults to all.'
+        required: false
+        default: ''
+
+jobs:
+  security-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v3
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Build Gatekeeper
+        run: mvn -B clean package -DskipTests
+
+      - name: Run Gatekeeper
+        id: run_gatekeeper
+        run: |
+          CHECKS_ARG=""
+          if [ -n "${{ github.event.inputs.checks }}" ]; then
+            # convert comma list to flags
+            IFS=',' read -ra CHKS <<< "${{ github.event.inputs.checks }}"
+            for c in "${CHKS[@]}"; do
+              case "$c" in
+                cors) CHECKS_ARG+=" --check-cors" ;;
+                actuator) CHECKS_ARG+=" --check-actuator" ;;
+                sql) CHECKS_ARG+=" --check-sql" ;;
+              esac
+            done
+          fi
+          if [ -z "$CHECKS_ARG" ]; then
+            # default: run all checks
+            CHECKS_ARG=" --check-cors --check-actuator --check-sql"
+          fi
+          echo "Running gatekeeper against ${{ github.event.inputs.target-url }} with checks:$CHECKS_ARG"
+          java -jar target/gatekeeper-1.0.jar --url "${{ github.event.inputs.target-url }}" $CHECKS_ARG --report=scan-report.txt || true
+          echo "scan-status=$(if [ -s scan-report.txt ]; then echo 'failed'; else echo 'passed'; fi)" >> $GITHUB_OUTPUT
+
+      - name: Upload scan report (if present)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gatekeeper-scan-report
+          path: scan-report.txt
+
+      - name: Fail workflow if vulnerabilities found
+        if: steps.run_gatekeeper.outputs.scan-status == 'failed'
+        run: |
+          echo "Vulnerabilities detected by Gatekeeper - failing workflow"
+          exit 1
