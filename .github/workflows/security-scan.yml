@@ -47,7 +47,7 @@ jobs:
             CHECKS_ARG=" --check-cors --check-actuator --check-sql"
           fi
           echo "Running gatekeeper against ${{ github.event.inputs.target-url }} with checks:$CHECKS_ARG"
-          java -jar target/gatekeeper-1.0.jar --url "${{ github.event.inputs.target-url }}" $CHECKS_ARG --report=scan-report.txt || true
+          java -jar target/gatekeeper-1.0.0.jar --url "${{ github.event.inputs.target-url }}" $CHECKS_ARG --report=scan-report.txt || true
           echo "scan-status=$(if [ -s scan-report.txt ]; then echo 'failed'; else echo 'passed'; fi)" >> $GITHUB_OUTPUT
 
       - name: Upload scan report (if present)
